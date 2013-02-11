@@ -3,9 +3,10 @@ ChopHuman
 
 About
 -----
-ChopHuman is a Blender 2.6x plug-in which assists in the generation of 2-D
-cutout-style characters from MakeHuman meshes. This is far from being a
-nice piece of software but does, sort of, work. At this point it only
+ChopHuman is a [Blender](http://www.blender.org/) 2.6x plug-in which assists
+in the generation of [2-D cutout-style](http://en.wikipedia.org/wiki/Cutout_animation)
+characters from [MakeHuman](http://www.makehuman.org/) meshes. This is far from
+being a nice piece of software but does, sort of, work. At this point it only
 generates a right-facing profile view of the body parts.
 
 Installation
