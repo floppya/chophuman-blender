@@ -149,7 +149,7 @@ def create_limb_groups(obj, new_group_name, group_names, threshold=0.3):
     meta_group.add(list(indices), 1.0, 'ADD')
     mask_modifier = obj.modifiers.new('LimbMask_' + meta_group.name, 'MASK')
     mask_modifier.vertex_group = meta_group.name
-    mask_modifier.show_render =  mask_modifier.show_viewport = False
+    mask_modifier.show_render = mask_modifier.show_viewport = False
 
         
 def render_limbs(objs, limb_group_names):
@@ -180,9 +180,8 @@ def render_limbs(objs, limb_group_names):
     # hide all the limbs
     for obj in objs:
         for modifier in obj.modifiers:
-            if not modifier.name.startswith('LimbMask_'):
-                continue
-            modifier.show_render = modifier.show_viewport = False
+            if modifier.name.startswith('LimbMask_'):
+                modifier.show_render = modifier.show_viewport = False
     
     # render each limb in isolation
     last_modifiers = []
