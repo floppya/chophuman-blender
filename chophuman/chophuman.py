@@ -116,7 +116,9 @@ LIMB_CONFIG.reverse() # HACK: the photoshop plugin actually wants them the other
 
 
 def pose_human(obj):
-    """ Position the arms. """
+    """
+    Moves the MakeHuman body into a nice position for rendering the constituent limbs.
+    """
     left_bone = obj.pose.bones['UpArm_L']
     right_bone = obj.pose.bones['UpArm_R']
     left_bone.matrix *= mathutils.Matrix.Rotation(math.radians(-85.0), 4, 'X')
@@ -194,6 +196,7 @@ def arrange_scene_for_rendering(scene):
     render.alpha_mode = 'STRAIGHT'
     render.image_settings.color_mode = 'RGBA'
     render.use_full_sample = True
+    render.use_shadows = False
     render.resolution_x, render.resolution_y = (1080, 1920)
     # TODO: Use the object bounds to calculate the ideal camera position?
     camera = bpy.data.cameras['Camera']
@@ -204,23 +207,23 @@ def arrange_scene_for_rendering(scene):
     camera_obj.location = (-25.0, 0.0, 12.0)
     light = bpy.data.lamps['Lamp']
     light.type = 'SUN'
-    light.shadow_method = 'NOSHADOW' # TODO: Is there a better way to prevent self-shadowing from the hidden vertex groups?
+    light.shadow_method = 'NOSHADOW'
     light_obj = bpy.data.objects['Lamp']
     light_obj.location = (-10.0, 0.0, 10.0)
     light_obj.rotation_euler = (0.0, math.radians(-45.0), 0.0)
 
-        
+
 def render_limbs(objs, limb_group_names, render_normalmaps=True):
     """
     Renders each limb in isolation using the masks we created earlier.
     """
     scene = bpy.context.scene
     arrange_scene_for_rendering(scene)
-    _render_limbs_force_material(objs, limb_group_names)
+    _render_limbs_force_material(objs, limb_group_names, shadeless=render_normalmaps)
     if render_normalmaps:
         _render_normalmaps(objs, limb_group_names)
 
-        
+
 def _render_normalmaps(objs, limb_group_names):
     """
     Creates a normal map material and renders all the limbs with it.
@@ -229,10 +232,10 @@ def _render_normalmaps(objs, limb_group_names):
     _render_limbs_force_material(objs, limb_group_names, material=normalmap_material)
 
 
-def _render_limbs_force_material(objs, limb_group_names, material=None):
+def _render_limbs_force_material(objs, limb_group_names, material=None, shadeless=False):
     """
     Renders each limb in isolation using the masks we created earlier.
-    Allows the mesh material to be overridden.
+    Allows the mesh material to be overridden and for optional shadeless rendering.
     """
     scene = bpy.context.scene
     # hide all the limbs and optionally add the normalmap material
@@ -240,12 +243,18 @@ def _render_limbs_force_material(objs, limb_group_names, material=None):
         for modifier in obj.modifiers:
             if modifier.name.startswith('LimbMask_'):
                 modifier.show_render = modifier.show_viewport = False
-        if not material is None:
+        if material is None:
+            if shadeless:
+                # TODO: is "materials[0]" safe to assume in a MakeHuman context?
+                obj.data.materials[0].use_shadeless = True
+        else:
+            # add the optional material to the mesh and assign it to the faces
             mesh = obj.data
             mesh.materials.append(material)
             material_index = len(mesh.materials) - 1
             for face in mesh.polygons:
                 face.material_index = material_index
+
     # render each limb in isolation
     last_modifiers = []
     for limb_index, limb_group_name in enumerate(limb_group_names):
@@ -305,7 +314,7 @@ class ChopHumanOperator(bpy.types.Operator):
     bl_label = 'Chop'
 
     def execute(self, context):    
-        # TODO: UI for threshold?
+        # TODO: UI for threshold, output path, render normalmaps
         chop(context.selected_objects, group_threshold=0.0)
         return {'FINISHED'}
 
