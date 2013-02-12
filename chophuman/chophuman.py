@@ -15,7 +15,7 @@ def prefix_dfm(*parts):
 def make_group_side_names(side, parts):
     return apply_name_template('%s_' + side, parts)
     
-arm_parts = prefix_dfm(
+ARM_PARTS = prefix_dfm(
     'Biceps',
     'ElbowFan',
     'ElbowFwd',
@@ -51,20 +51,20 @@ hand_parts = (
     'Thumb-2',
     'Thumb-3',
 )
-upper_leg_parts = prefix_dfm(
+UPPER_LEG_PARTS = prefix_dfm(
     'UpLeg1',
     'UpLeg2',
 )
-lower_leg_parts = prefix_dfm(
+LOWER_LEG_PARTS = prefix_dfm(
     'KneeFan',
     'KneeBack',
     'LoLeg',
 )
-feet_parts = prefix_dfm(
+FEET_PARTS = prefix_dfm(
     'Toe',
     'Foot',
 )
-head_parts = (
+HEAD_PARTS = (
     'DfmHead',
     'DfmLoLid_L',
     'DfmLoLid_R',
@@ -78,7 +78,7 @@ head_parts = (
     'TongueTip',
     'Jaw',
 )
-torso_parts = prefix_dfm(
+TORSO_PARTS = prefix_dfm(
     'Clavicle',
     'Breast_L',
     'Breast_R',
@@ -95,22 +95,22 @@ torso_parts = prefix_dfm(
     'Trap2',
 )
 LIMB_CONFIG = [ # order for painter's algorithm
-    ('chop_right_foot', make_group_side_names('R', feet_parts)),
-    ('chop_right_lower_leg', make_group_side_names('R', lower_leg_parts)),
-    ('chop_right_leg', make_group_side_names('R', upper_leg_parts)),
+    ('chop_right_foot', make_group_side_names('R', FEET_PARTS)),
+    ('chop_right_lower_leg', make_group_side_names('R', LOWER_LEG_PARTS)),
+    ('chop_right_leg', make_group_side_names('R', UPPER_LEG_PARTS)),
     
     ('chop_right_hand', make_group_side_names('R', hand_parts)),
-    ('chop_right_arm', make_group_side_names('R', arm_parts)),
+    ('chop_right_arm', make_group_side_names('R', ARM_PARTS)),
 
-    ('chop_head', head_parts),
-    ('chop_torso', torso_parts),
+    ('chop_head', HEAD_PARTS),
+    ('chop_torso', TORSO_PARTS),
     
-    ('chop_left_foot', make_group_side_names('L', feet_parts)),
-    ('chop_left_lower_leg', make_group_side_names('L', lower_leg_parts)),
-    ('chop_left_leg', make_group_side_names('L', upper_leg_parts)),
+    ('chop_left_foot', make_group_side_names('L', FEET_PARTS)),
+    ('chop_left_lower_leg', make_group_side_names('L', LOWER_LEG_PARTS)),
+    ('chop_left_leg', make_group_side_names('L', UPPER_LEG_PARTS)),
     
     ('chop_left_hand', make_group_side_names('L', hand_parts)),
-    ('chop_left_arm', make_group_side_names('L', arm_parts)),        
+    ('chop_left_arm', make_group_side_names('L', ARM_PARTS)),        
 ]
 LIMB_CONFIG.reverse() # HACK: the photoshop plugin actually wants them the other way around.
 
@@ -125,12 +125,11 @@ def pose_human(obj):
     right_bone.matrix *= mathutils.Matrix.Rotation(math.radians(-85.0), 4, 'X')
 
 
-def create_normalmap_material():
+def create_normalmap_material(material_name='normal_material'):
     """
     Creates a material used to generate normal maps.
     """
-    NORMAL_MATERIAL_NAME = 'normal_material'
-    material = bpy.data.materials.new(NORMAL_MATERIAL_NAME)
+    material = bpy.data.materials.new(material_name)
     material.use_shadeless = True
     material.diffuse_color = (0.0, 0.0, 0.0)
     texture_slots = material.texture_slots
@@ -145,7 +144,7 @@ def create_normalmap_material():
             if map_axis == 'x':
                 map_value = axis.upper()
             setattr(slot, 'mapping_' + map_axis, map_value)
-        tex_name = '%s_%s' % (NORMAL_MATERIAL_NAME, axis)
+        tex_name = '%s_%s' % (material_name, axis)
         tex = bpy.data.textures.new(tex_name, 'BLEND')
         color = []
         for color_axis in axes:
@@ -198,7 +197,6 @@ def arrange_scene_for_rendering(scene):
     render.use_full_sample = True
     render.use_shadows = False
     render.resolution_x, render.resolution_y = (1080, 1920)
-    # TODO: Use the object bounds to calculate the ideal camera position?
     camera = bpy.data.cameras['Camera']
     camera.type = 'ORTHO'
     camera.ortho_scale = 28.0 # magic
@@ -245,7 +243,6 @@ def _render_limbs_force_material(objs, limb_group_names, material=None, shadeles
                 modifier.show_render = modifier.show_viewport = False
         if material is None:
             if shadeless:
-                # TODO: is "materials[0]" safe to assume in a MakeHuman context?
                 obj.data.materials[0].use_shadeless = True
         else:
             # add the optional material to the mesh and assign it to the faces
@@ -270,7 +267,7 @@ def _render_limbs_force_material(objs, limb_group_names, material=None, shadeles
             modifier.show_render = modifier.show_viewport = True
             last_modifiers.append(modifier)
         # render limb
-        target_directory = 'c:/tmp/' # TODO: un-hardcode render filepath
+        target_directory = 'c:/tmp/'
         if material is None:
             filename = '%03d_%s.png' % (limb_index, limb_group_name)
         else:
@@ -300,11 +297,10 @@ def render(target_objects):
     Interface for the render operator.
     """
     relevant_objs = []
-    for limb_group_name, limb_group in LIMB_CONFIG:
-        for root_object in target_objects:
-            for subobj in root_object.children:
-                if subobj.type.lower() == 'mesh':                        
-                    relevant_objs.append(subobj) 
+    for root_object in target_objects:
+        for subobj in root_object.children:
+            if subobj.type.lower() == 'mesh':                        
+                relevant_objs.append(subobj) 
     render_limbs(relevant_objs, [name for name, groups in LIMB_CONFIG])
 
     
@@ -314,7 +310,6 @@ class ChopHumanOperator(bpy.types.Operator):
     bl_label = 'Chop'
 
     def execute(self, context):    
-        # TODO: UI for threshold, output path, render normalmaps
         chop(context.selected_objects, group_threshold=0.0)
         return {'FINISHED'}
 
