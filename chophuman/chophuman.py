@@ -7,12 +7,15 @@ import os
 
 # Define limb parts based on vertex groups
 def apply_name_template(template, parts):
+    """ Fill in a name template string """
     return [template % part for part in parts]
     
 def prefix_dfm(*parts):
+    """ Prefix all the group names with 'Dfm' """
     return apply_name_template('Dfm%s', parts)
     
 def make_group_side_names(side, parts):
+    """ Prefixes group names with L_ or R_ """
     return apply_name_template('%s_' + side, parts)
     
 ARM_PARTS = prefix_dfm(
@@ -29,7 +32,7 @@ ARM_PARTS = prefix_dfm(
     'Wrist-2',
     'Wrist-3',
 )
-hand_parts = (
+HAND_PARTS = (
     'Index-1',
     'Index-2',
     'Index-3',
@@ -99,7 +102,7 @@ LIMB_CONFIG = [ # order for painter's algorithm
     ('chop_right_lower_leg', make_group_side_names('R', LOWER_LEG_PARTS)),
     ('chop_right_leg', make_group_side_names('R', UPPER_LEG_PARTS)),
     
-    ('chop_right_hand', make_group_side_names('R', hand_parts)),
+    ('chop_right_hand', make_group_side_names('R', HAND_PARTS)),
     ('chop_right_arm', make_group_side_names('R', ARM_PARTS)),
 
     ('chop_head', HEAD_PARTS),
@@ -109,10 +112,10 @@ LIMB_CONFIG = [ # order for painter's algorithm
     ('chop_left_lower_leg', make_group_side_names('L', LOWER_LEG_PARTS)),
     ('chop_left_leg', make_group_side_names('L', UPPER_LEG_PARTS)),
     
-    ('chop_left_hand', make_group_side_names('L', hand_parts)),
+    ('chop_left_hand', make_group_side_names('L', HAND_PARTS)),
     ('chop_left_arm', make_group_side_names('L', ARM_PARTS)),        
 ]
-LIMB_CONFIG.reverse() # HACK: the photoshop plugin actually wants them the other way around.
+LIMB_CONFIG.reverse()
 
 
 def pose_human(obj):
@@ -217,7 +220,8 @@ def render_limbs(objs, limb_group_names, render_normalmaps=True):
     """
     scene = bpy.context.scene
     arrange_scene_for_rendering(scene)
-    _render_limbs_force_material(objs, limb_group_names, shadeless=render_normalmaps)
+    _render_limbs_force_material(
+        objs, limb_group_names, shadeless=render_normalmaps)
     if render_normalmaps:
         _render_normalmaps(objs, limb_group_names)
 
