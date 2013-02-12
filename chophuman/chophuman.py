@@ -2,6 +2,7 @@ import bpy
 from collections import defaultdict
 import math
 import mathutils
+import os
 
 
 # Define limb parts based on vertex groups
@@ -28,7 +29,7 @@ arm_parts = prefix_dfm(
     'Wrist-2',
     'Wrist-3',
 )
-hand_parts= (
+hand_parts = (
     'Index-1',
     'Index-2',
     'Index-3',
@@ -121,7 +122,40 @@ def pose_human(obj):
     left_bone.matrix *= mathutils.Matrix.Rotation(math.radians(-85.0), 4, 'X')
     right_bone.matrix *= mathutils.Matrix.Rotation(math.radians(-85.0), 4, 'X')
 
-   
+
+def create_normalmap_material():
+    """
+    Creates a material used to generate normal maps.
+    """
+    NORMAL_MATERIAL_NAME = 'normal_material'
+    material = bpy.data.materials.new(NORMAL_MATERIAL_NAME)
+    material.use_shadeless = True
+    material.diffuse_color = (0.0, 0.0, 0.0)
+    texture_slots = material.texture_slots
+    # create a blend texture for each axis and add them to slots on the material
+    axes = ('x', 'y', 'z')
+    for axis in axes:
+        slot = texture_slots.add()
+        slot.blend_type = 'ADD'
+        slot.texture_coords = 'NORMAL'
+        for map_axis in axes:
+            map_value = 'NONE'
+            if map_axis == 'x':
+                map_value = axis.upper()
+            setattr(slot, 'mapping_' + map_axis, map_value)
+        tex_name = '%s_%s' % (NORMAL_MATERIAL_NAME, axis)
+        tex = bpy.data.textures.new(tex_name, 'BLEND')
+        color = []
+        for color_axis in axes:
+            color_value = 0.0
+            if color_axis == axis:
+                color_value = 1.0
+            color.append(color_value)
+        slot.color = color
+        slot.texture = tex
+    return material
+
+
 def create_limb_groups(obj, new_group_name, group_names, threshold=0.3):
     """
     Aggregates the named vertex groups on this object into one large group which
@@ -151,13 +185,11 @@ def create_limb_groups(obj, new_group_name, group_names, threshold=0.3):
     mask_modifier.vertex_group = meta_group.name
     mask_modifier.show_render = mask_modifier.show_viewport = False
 
-        
-def render_limbs(objs, limb_group_names):
+
+def arrange_scene_for_rendering(scene):
     """
-    Renders each limb in isolation using the masks we created earlier.
+    Sets up the renderer, camera, and light.
     """
-    # arrange scene for rendering
-    scene = bpy.context.scene
     render = scene.render
     render.alpha_mode = 'STRAIGHT'
     render.image_settings.color_mode = 'RGBA'
@@ -176,13 +208,44 @@ def render_limbs(objs, limb_group_names):
     light_obj = bpy.data.objects['Lamp']
     light_obj.location = (-10.0, 0.0, 10.0)
     light_obj.rotation_euler = (0.0, math.radians(-45.0), 0.0)
-    
-    # hide all the limbs
+
+        
+def render_limbs(objs, limb_group_names, render_normalmaps=True):
+    """
+    Renders each limb in isolation using the masks we created earlier.
+    """
+    scene = bpy.context.scene
+    arrange_scene_for_rendering(scene)
+    _render_limbs_force_material(objs, limb_group_names)
+    if render_normalmaps:
+        _render_normalmaps(objs, limb_group_names)
+
+        
+def _render_normalmaps(objs, limb_group_names):
+    """
+    Creates a normal map material and renders all the limbs with it.
+    """
+    normalmap_material = create_normalmap_material()
+    _render_limbs_force_material(objs, limb_group_names, material=normalmap_material)
+
+
+def _render_limbs_force_material(objs, limb_group_names, material=None):
+    """
+    Renders each limb in isolation using the masks we created earlier.
+    Allows the mesh material to be overridden.
+    """
+    scene = bpy.context.scene
+    # hide all the limbs and optionally add the normalmap material
     for obj in objs:
         for modifier in obj.modifiers:
             if modifier.name.startswith('LimbMask_'):
                 modifier.show_render = modifier.show_viewport = False
-    
+        if not material is None:
+            mesh = obj.data
+            mesh.materials.append(material)
+            material_index = len(mesh.materials) - 1
+            for face in mesh.polygons:
+                face.material_index = material_index
     # render each limb in isolation
     last_modifiers = []
     for limb_index, limb_group_name in enumerate(limb_group_names):
@@ -198,12 +261,20 @@ def render_limbs(objs, limb_group_names):
             modifier.show_render = modifier.show_viewport = True
             last_modifiers.append(modifier)
         # render limb
-        filename = 'c:/tmp/%03d_%s.png' % (limb_index, limb_group_name) # TODO: un-hardcode render filepath
-        scene.render.filepath = filename
+        target_directory = 'c:/tmp/' # TODO: un-hardcode render filepath
+        if material is None:
+            filename = '%03d_%s.png' % (limb_index, limb_group_name)
+        else:
+            filename = '%03d_%s_%s.png' % (limb_index, limb_group_name, material.name)
+        filepath = os.path.join(target_directory, filename)
+        scene.render.filepath = filepath
         bpy.ops.render.render(write_still=True)
 
     
 def chop(target_objects, group_threshold=0.5):
+    """
+    Interface for the chop_it operator.
+    """
     bpy.ops.object.mode_set(mode='OBJECT')
     for obj in target_objects:
         pose_human(obj)
@@ -216,6 +287,9 @@ def chop(target_objects, group_threshold=0.5):
     
     
 def render(target_objects):
+    """
+    Interface for the render operator.
+    """
     relevant_objs = []
     for limb_group_name, limb_group in LIMB_CONFIG:
         for root_object in target_objects:

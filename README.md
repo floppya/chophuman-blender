@@ -7,12 +7,14 @@ ChopHuman is a [Blender](http://www.blender.org/) 2.6x plug-in which assists
 in the generation of [2-D cutout-style](http://en.wikipedia.org/wiki/Cutout_animation)
 characters from [MakeHuman](http://www.makehuman.org/) meshes. This is far from
 being a nice piece of software but does, sort of, work. At this point it only
-generates a right-facing profile view of the body parts.
+generates diffuse and normal maps of the body parts in a right-facing, profile
+orientation.
 
 Installation
 ------------
 Copy the chophuman folder into your blender addons directory and then enable
-it in User Settings under the MakeHuman group.
+it in User Settings under the MakeHuman group. So far, this has only been
+used in Blender 2.65.
 
 Usage
 -----
