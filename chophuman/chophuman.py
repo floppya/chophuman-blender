@@ -98,24 +98,23 @@ TORSO_PARTS = prefix_dfm(
     'Trap2',
 )
 LIMB_CONFIG = [ # order for painter's algorithm
-    ('chop_right_foot', make_group_side_names('R', FEET_PARTS)),
-    ('chop_right_lower_leg', make_group_side_names('R', LOWER_LEG_PARTS)),
-    ('chop_right_leg', make_group_side_names('R', UPPER_LEG_PARTS)),
-    
-    ('chop_right_hand', make_group_side_names('R', HAND_PARTS)),
-    ('chop_right_arm', make_group_side_names('R', ARM_PARTS)),
-
-    ('chop_head', HEAD_PARTS),
-    ('chop_torso', TORSO_PARTS),
+    ('chop_left_arm', make_group_side_names('L', ARM_PARTS)),      
+    ('chop_left_hand', make_group_side_names('L', HAND_PARTS)),
     
     ('chop_left_foot', make_group_side_names('L', FEET_PARTS)),
     ('chop_left_lower_leg', make_group_side_names('L', LOWER_LEG_PARTS)),
-    ('chop_left_leg', make_group_side_names('L', UPPER_LEG_PARTS)),
+    ('chop_left_upper_leg', make_group_side_names('L', UPPER_LEG_PARTS)),
     
-    ('chop_left_hand', make_group_side_names('L', HAND_PARTS)),
-    ('chop_left_arm', make_group_side_names('L', ARM_PARTS)),        
+    ('chop_head', HEAD_PARTS),
+    ('chop_torso', TORSO_PARTS),
+    
+    ('chop_right_foot', make_group_side_names('R', FEET_PARTS)),
+    ('chop_right_lower_leg', make_group_side_names('R', LOWER_LEG_PARTS)),
+    ('chop_right_upper_leg', make_group_side_names('R', UPPER_LEG_PARTS)),
+    
+    ('chop_right_arm', make_group_side_names('R', ARM_PARTS)),
+    ('chop_right_hand', make_group_side_names('R', HAND_PARTS)),
 ]
-LIMB_CONFIG.reverse()
 
 
 def pose_human(obj):
@@ -190,7 +189,7 @@ def create_limb_groups(obj, new_group_name, group_names, threshold=0.3):
     mask_modifier.show_render = mask_modifier.show_viewport = False
 
 
-def arrange_scene_for_rendering(scene):
+def arrange_scene_for_rendering(scene, flat_shaded=False):
     """
     Sets up the renderer, camera, and light.
     """
@@ -198,7 +197,7 @@ def arrange_scene_for_rendering(scene):
     render.alpha_mode = 'STRAIGHT'
     render.image_settings.color_mode = 'RGBA'
     render.use_full_sample = True
-    render.use_shadows = False
+    render.use_shadows = not flat_shaded
     render.resolution_x, render.resolution_y = (1080, 1920)
     camera = bpy.data.cameras['Camera']
     camera.type = 'ORTHO'
@@ -214,16 +213,16 @@ def arrange_scene_for_rendering(scene):
     light_obj.rotation_euler = (0.0, math.radians(-45.0), 0.0)
 
 
-def render_limbs(objs, limb_group_names, render_normalmaps=True):
+def render_limbs(objs, limb_group_names, normal_maps=False, flat_shaded=False):
     """
     Renders each limb in isolation using the masks we created earlier.
     """
     scene = bpy.context.scene
-    arrange_scene_for_rendering(scene)
+    arrange_scene_for_rendering(scene, flat_shaded=flat_shaded)
     _render_limbs_force_material(
-        objs, limb_group_names, shadeless=render_normalmaps)
-    if render_normalmaps:
-        _render_normalmaps(objs, limb_group_names)
+        objs, limb_group_names, flat_shaded=flat_shaded)
+    if normal_maps:
+        _render_normalmaps(objs, limb_group_names, )
 
 
 def _render_normalmaps(objs, limb_group_names):
@@ -234,7 +233,7 @@ def _render_normalmaps(objs, limb_group_names):
     _render_limbs_force_material(objs, limb_group_names, material=normalmap_material)
 
 
-def _render_limbs_force_material(objs, limb_group_names, material=None, shadeless=False):
+def _render_limbs_force_material(objs, limb_group_names, material=None, flat_shaded=False):
     """
     Renders each limb in isolation using the masks we created earlier.
     Allows the mesh material to be overridden and for optional shadeless rendering.
@@ -246,8 +245,8 @@ def _render_limbs_force_material(objs, limb_group_names, material=None, shadeles
             if modifier.name.startswith('LimbMask_'):
                 modifier.show_render = modifier.show_viewport = False
         if material is None:
-            if shadeless:
-                obj.data.materials[0].use_shadeless = True
+            if flat_shaded:
+                obj.data.materials[0].use_shadeless = flat_shaded
         else:
             # add the optional material to the mesh and assign it to the faces
             mesh = obj.data
@@ -294,9 +293,9 @@ def chop(target_objects, group_threshold=0.5):
             for subobj in root_object.children:
                 if subobj.type.lower() == 'mesh':
                     create_limb_groups(subobj, limb_group_name, limb_group, threshold=group_threshold)
-    
-    
-def render(target_objects):
+
+
+def render(target_objects, flat_shaded=False, normal_maps=False):
     """
     Interface for the render operator.
     """
@@ -305,9 +304,12 @@ def render(target_objects):
         for subobj in root_object.children:
             if subobj.type.lower() == 'mesh':                        
                 relevant_objs.append(subobj) 
-    render_limbs(relevant_objs, [name for name, groups in LIMB_CONFIG])
+    render_limbs(
+        relevant_objs, [name for name, groups in LIMB_CONFIG],
+        flat_shaded=flat_shaded, normal_maps=normal_maps
+    )
 
-    
+
 class ChopHumanOperator(bpy.types.Operator):
     """ The Choperator. """
     bl_idname = 'chophuman.chop_it'
@@ -317,28 +319,35 @@ class ChopHumanOperator(bpy.types.Operator):
         chop(context.selected_objects, group_threshold=0.0)
         return {'FINISHED'}
 
-        
+
 class RenderChoppedHumanOperator(bpy.types.Operator):
     """ Render the chopped limbs. """
     bl_idname = 'chophuman.render_limbs'
     bl_label = 'Render'
 
+    output_path = bpy.props.StringProperty(subtype='FILE_PATH', name='Output path')
+    flat_shaded = bpy.props.BoolProperty(default=False, name='Flat shaded')
+    normal_maps = bpy.props.BoolProperty(default=False, name='Normal maps')
+
     def execute(self, context):    
-        render(context.selected_objects)
+        render(context.selected_objects, self.flat_shaded, self.normal_maps)
         return {'FINISHED'}
 
-        
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
+
 class ChopHumanPanel(bpy.types.Panel):
     bl_idname = 'ChopHumanPanel'
     bl_label = 'Chop Human'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'object'
-    
+
     def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.operator('chophuman.chop_it')
         row = layout.row()
         row.operator('chophuman.render_limbs')
-

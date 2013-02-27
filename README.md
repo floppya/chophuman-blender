@@ -1,14 +1,18 @@
-ChopHuman
-=========
+ChopHuman-blender
+=================
+
+This project has been combined with the chophuman finishing tool at
+https://github.com/floppya/ChopHuman
+
+This repo will no longer receive updates.
 
 About
 -----
-ChopHuman is a [Blender](http://www.blender.org/) 2.6x plug-in which assists
+ChopHuman-blender is a [Blender](http://www.blender.org/) 2.6x plug-in which assists
 in the generation of [2-D cutout-style](http://en.wikipedia.org/wiki/Cutout_animation)
-characters from [MakeHuman](http://www.makehuman.org/) meshes. This is far from
-being a nice piece of software but does, sort of, work. At this point it only
-generates diffuse and normal maps of the body parts in a right-facing, profile
-orientation.
+characters from [MakeHuman](http://www.makehuman.org/) meshes. This is far from being
+a nice piece of software but does, sort of, work. At this point it only generates
+diffuse and normal maps of the body parts in a right-facing, profile orientation.
 
 Installation
 ------------
@@ -30,6 +34,11 @@ MakeHuman meshes (clothes, skin, etc).
 * The ChopHuman panel can be found in the object properties.
 * First, click 'Chop' which creates mask modifiers for each limb, on each mesh.
 * Then click 'Render' which will render each limb on its own.
+
+Now that you have a bunch of renders of the limbs, you might find 
+[ChopHuman-finisher](https://github.com/floppya/chophuman-finisher) useful.
+It aims to simplify cleaning up and rigging the renders for export to
+other animation tools.
 
 License
 -------
